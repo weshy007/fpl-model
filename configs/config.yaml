@@ -1,0 +1,18 @@
+project:
+  name: fpl-ai
+  version: 0.1.0
+
+data:
+  raw_path: data/raw
+  interim_path: data/interim
+  processed_path: data/processed
+
+model:
+  random_seed: 42
+  target: next_gw_points
+
+features:
+  rolling_windows:
+    - 3
+    - 5
+    - 10
