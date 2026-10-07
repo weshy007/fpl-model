@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -41,7 +41,7 @@ def download_file(
         "url": url,
         "path": str(destination),
         "sha256": _sha256(destination),
-        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "retrieved_at": datetime.now(UTC).isoformat(),
         "bytes": destination.stat().st_size,
     }
 
@@ -88,7 +88,7 @@ def write_manifest(records: list[dict[str, Any]], destination: Path) -> None:
     """Persist retrieval provenance in deterministic JSON."""
     destination.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "files": records,
     }
     destination.write_text(

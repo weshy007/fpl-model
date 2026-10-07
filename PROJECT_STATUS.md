@@ -1,34 +1,25 @@
 # Project Status
 
-## Milestone 0 — Foundation
+## Milestone 0 — Foundation: complete
 
-**Status: Complete**
+Package structure, CI, tests, contribution docs, security policy, data policy.
 
-The repository contains:
+## Milestone 1 — Historical data pipeline: complete
 
-- Python package structure
-- Development configuration
-- CI workflow
-- Tests
-- Contribution documentation
-- Code of Conduct
-- Security policy
-- Data policy
-- Initial model/feature interfaces
+Raw download (5 seasons, 2021-22 to 2025-26) → validated canonical `player_gw` tables.
+The normalizer handles double gameweeks, negative points, team names, `GKP`, assistant-manager rows
+and exact duplicate source rows.
 
-## Next Milestone — Historical Data Pipeline
+## Milestone 2 — Simple model: complete (v0.1)
 
-Target:
+- Leakage-checked rolling features (player form, minutes, team and opponent form, fixture context)
+- LightGBM expected-points model vs transparent baselines, walk-forward validated
+- MILP squad / XI / bench / captain optimizer (`scipy.optimize.milp`)
+- Decision backtest and written evaluation: `docs/model_evaluation.md`
 
-```text
-FPL historical data
-        ↓
-raw storage
-        ↓
-clean/validated tables
-        ↓
-player-GW training dataset
-```
+## Not yet done
 
-The next implementation should focus on historical data ingestion and
-reconstruction before serious model training begins.
+- Live ingestion for the upcoming Gameweek, FPL team integration, API/dashboard
+- Separate minutes model, availability/injury data
+- Persistent-squad transfer simulation, multi-Gameweek planning
+- PostgreSQL storage, scheduled inference, monitoring

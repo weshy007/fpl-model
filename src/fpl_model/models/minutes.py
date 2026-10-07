@@ -9,6 +9,7 @@ from sklearn.base import RegressorMixin
 @dataclass
 class MinutesPredictor:
     """Interface for an expected-minutes model."""
+
     estimator: RegressorMixin
 
     def predict(self, features: np.ndarray) -> np.ndarray:

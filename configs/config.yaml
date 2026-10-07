@@ -6,13 +6,28 @@ data:
   raw_path: data/raw
   interim_path: data/interim
   processed_path: data/processed
+  seasons: ["2021-22", "2022-23", "2023-24", "2024-25", "2025-26"]
 
 model:
   random_seed: 42
   target: next_gw_points
+  path: models/points_lgbm.joblib
+  lightgbm:
+    n_estimators: 300
+    learning_rate: 0.03
+    num_leaves: 31
+    min_child_samples: 50
 
 features:
   rolling_windows:
     - 3
     - 5
     - 10
+  form_window: 5
+
+evaluation:
+  test_season: "2025-26"   # earlier seasons only ever used for training
+  retrain_every: 4         # Gameweeks per walk-forward block
+  min_history: 3           # evaluate players with >= this many prior appearances
+  top_k: 10
+  results_path: reports/model_results

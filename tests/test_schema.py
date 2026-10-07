@@ -1,10 +1,10 @@
 import pandas as pd
 import pytest
 
-from fpl_ai.data.schema import PLAYER_GW_COLUMNS
-from fpl_ai.data.validation import validate_player_gw
+from fpl_model.data.normalize import normalize_player_gw
+from fpl_model.data.schema import PLAYER_GW_COLUMNS
+from fpl_model.data.validation import validate_player_gw
 from tests.test_normalize import raw_row
-from fpl_ai.data.normalize import normalize_player_gw
 
 
 def test_player_gw_column_order_is_canonical():

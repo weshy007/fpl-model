@@ -11,7 +11,7 @@ The system separates two problems:
 
 ## Project Status
 
-**Early development — project foundation.** Prediction and optimization functionality is not yet production-ready.
+**Early development — working baseline.** A simple end-to-end pipeline exists (data → features → LightGBM expected-points model → squad/XI/captain optimizer → walk-forward backtest). It is a research prototype, not production-ready. See `docs/model_evaluation.md` for results and limitations.
 
 ## Goals
 
@@ -373,7 +373,7 @@ fpl-ai/
 
 ### Requirements
 
-- Python 3.12+
+- Python 3.13+
 - Git
 - A virtual environment
 - Optional: PostgreSQL for database-backed development
@@ -410,6 +410,18 @@ pip install -e ".[dev]"
 ```bash
 cp .env.example .env
 ```
+
+### Quick start
+
+```bash
+python scripts/ingest_data.py --season 2021-22 --season 2022-23 --season 2023-24 --season 2024-25 --season 2025-26
+python scripts/normalize_data.py --season 2021-22 --season 2022-23 --season 2023-24 --season 2024-25 --season 2025-26
+python scripts/build_features.py
+python scripts/train_model.py          # walk-forward backtest + final model
+python scripts/generate_predictions.py --season 2025-26 --gameweek 20
+```
+
+Or `make pipeline` once the data is downloaded.
 
 ### Test
 
@@ -493,52 +505,52 @@ As the project grows, large artifacts may be managed with:
 ### Phase 1 — Data
 
 - [ ] Official FPL API client
-- [ ] Historical data ingestion
+- [x] Historical data ingestion
 - [ ] Fixture ingestion
 - [ ] Player history ingestion
-- [ ] Data validation
+- [x] Data validation
 - [ ] PostgreSQL schema
 - [ ] Automated data updates
 
 ### Phase 2 — Features
 
-- [ ] Rolling form
-- [ ] Minutes features
-- [ ] Fixture strength
-- [ ] Team strength
-- [ ] Opponent strength
-- [ ] Home/away effects
+- [x] Rolling form
+- [x] Minutes features
+- [x] Fixture strength
+- [x] Team strength
+- [x] Opponent strength
+- [x] Home/away effects
 - [ ] Availability
-- [ ] xG/xA
+- [x] xG/xA
 - [ ] Set-piece involvement
 - [ ] Fixture congestion
 
 ### Phase 3 — Modeling
 
-- [ ] Baseline models
-- [ ] Time-aware validation
+- [x] Baseline models
+- [x] Time-aware validation
 - [ ] XGBoost
-- [ ] LightGBM
-- [ ] Model comparison
+- [x] LightGBM
+- [x] Model comparison (LightGBM vs baselines)
 - [ ] Expected minutes model
-- [ ] Expected points model
+- [x] Expected points model
 - [ ] Probabilistic predictions
 
 ### Phase 4 — Decision Engine
 
-- [ ] Starting XI optimizer
-- [ ] Bench optimizer
-- [ ] Captain optimizer
+- [x] Starting XI optimizer
+- [x] Bench optimizer
+- [x] Captain optimizer
 - [ ] Transfer optimizer
 - [ ] Multi-GW optimizer
 - [ ] Risk/differential scoring
 
 ### Phase 5 — Backtesting
 
-- [ ] Historical season simulator
+- [x] Historical season simulator (fresh squad each Gameweek; no transfers yet)
 - [ ] Strategy comparison
-- [ ] Model-vs-baseline analysis
-- [ ] Captaincy evaluation
+- [x] Model-vs-baseline analysis
+- [x] Captaincy evaluation
 - [ ] Transfer evaluation
 
 ### Phase 6 — Production

@@ -54,11 +54,13 @@ PLAYER_GW_SCHEMA = (
 )
 
 PLAYER_GW_COLUMNS = tuple(spec.name for spec in PLAYER_GW_SCHEMA)
-PLAYER_GW_REQUIRED_COLUMNS = tuple(
-    spec.name for spec in PLAYER_GW_SCHEMA if spec.required
-)
+PLAYER_GW_REQUIRED_COLUMNS = tuple(spec.name for spec in PLAYER_GW_SCHEMA if spec.required)
 
 VALID_POSITIONS = frozenset({"GK", "DEF", "MID", "FWD"})
+
+# Rows that appear in some dumps but are not selectable players
+# (e.g. 2024-25 "AM" assistant-manager chip entries).
+NON_PLAYER_POSITIONS = frozenset({"AM", "MNG", "MANAGER"})
 
 # Fields copied from the source when available. The aliases let us normalize
 # both the older dataset naming and the current FPL API naming.

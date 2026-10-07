@@ -1,14 +1,9 @@
 from __future__ import annotations
 
 import argparse
-import sys
-
-
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from src.data.normalize import load_historical_player_gw, write_player_gw
+from fpl_model.data.normalize import load_historical_player_gw, write_player_gw
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,7 +30,7 @@ def main() -> None:
         if not source.exists():
             raise SystemExit(f"Missing raw file: {source}")
 
-        frame = load_historical_player_gw(source, season)
+        frame = load_historical_player_gw(source, season, source.parent / "teams.csv")
         write_player_gw(frame, destination)
         print(f"{season}: {len(frame):,} rows -> {destination}")
 

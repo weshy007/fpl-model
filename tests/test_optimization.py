@@ -1,8 +1,8 @@
 import pytest
 
-from fpl_ai.optimization.lineup import validate_formation
-from fpl_ai.optimization.squad import validate_squad_size
-from fpl_ai.optimization.transfers import transfer_gain
+from fpl_model.optimization.lineup import validate_formation
+from fpl_model.optimization.squad import validate_squad_size
+from fpl_model.optimization.transfers import transfer_gain
 
 
 def test_valid_formation():

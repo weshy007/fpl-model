@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
-from fpl_ai.data.normalize import load_historical_player_gw, normalize_player_gw
-from fpl_ai.data.validation import validate_player_gw
+from fpl_model.data.normalize import load_historical_player_gw, normalize_player_gw
+from fpl_model.data.validation import validate_player_gw
 
 
 def raw_row(**overrides):
@@ -69,14 +69,44 @@ def test_normalized_schema_has_stable_columns():
     frame = normalize_player_gw(pd.DataFrame([raw_row()]), "2025-26")
 
     expected = {
-        "season", "gameweek", "player_id", "name", "team_id", "position",
-        "fixture_id", "opponent_team_id", "was_home", "kickoff_time",
-        "minutes", "starts", "total_points", "goals_scored", "assists",
-        "clean_sheets", "goals_conceded", "own_goals", "penalties_saved",
-        "penalties_missed", "saves", "yellow_cards", "red_cards", "bonus",
-        "bps", "influence", "creativity", "threat", "ict_index", "selected",
-        "transfers_balance", "transfers_in", "transfers_out", "value", "xg",
-        "xa", "xgi", "xgc",
+        "season",
+        "gameweek",
+        "player_id",
+        "name",
+        "team_id",
+        "position",
+        "fixture_id",
+        "opponent_team_id",
+        "was_home",
+        "kickoff_time",
+        "minutes",
+        "starts",
+        "total_points",
+        "goals_scored",
+        "assists",
+        "clean_sheets",
+        "goals_conceded",
+        "own_goals",
+        "penalties_saved",
+        "penalties_missed",
+        "saves",
+        "yellow_cards",
+        "red_cards",
+        "bonus",
+        "bps",
+        "influence",
+        "creativity",
+        "threat",
+        "ict_index",
+        "selected",
+        "transfers_balance",
+        "transfers_in",
+        "transfers_out",
+        "value",
+        "xg",
+        "xa",
+        "xgi",
+        "xgc",
     }
 
     assert set(frame.columns) == expected
@@ -134,3 +164,31 @@ def test_schema_validator_rejects_duplicate_key():
 
     with pytest.raises(ValueError, match="Duplicate key rows"):
         validate_player_gw(duplicate)
+
+
+def test_double_gameweek_is_valid():
+    frame = pd.DataFrame([raw_row(fixture=44), raw_row(fixture=45, opponent_team=3)])
+    result = normalize_player_gw(frame, "2025-26")
+    assert len(result) == 2
+
+
+def test_negative_points_are_valid():
+    result = normalize_player_gw(pd.DataFrame([raw_row(total_points=-3)]), "2025-26")
+    assert result.loc[0, "total_points"] == -3
+
+
+def test_gkp_alias_and_non_player_rows():
+    frame = pd.DataFrame(
+        [
+            raw_row(position="GKP", element_type=None),
+            raw_row(position="AM", element=999, element_type=None, name="Manager"),
+        ]
+    ).drop(columns="element_type")
+    result = normalize_player_gw(frame, "2025-26")
+    assert result["position"].tolist() == ["GK"]
+
+
+def test_team_names_are_mapped_with_lookup():
+    frame = pd.DataFrame([raw_row(team="Arsenal")])
+    result = normalize_player_gw(frame, "2025-26", team_ids={"Arsenal": 1})
+    assert result.loc[0, "team_id"] == 1
