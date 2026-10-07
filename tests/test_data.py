@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
-from fpl_model.data.preprocessing import sort_player_gameweeks
-from fpl_model.data.validation import require_columns
+from fpl_ai.data.preprocessing import sort_player_gameweeks
+from fpl_ai.data.validation import require_columns
 
 
 def test_require_columns_accepts_complete_frame():

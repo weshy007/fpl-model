@@ -1,6 +1,6 @@
 import pandas as pd
 
-from fpl_model.features.player_features import rolling_mean
+from fpl_ai.features.player_features import rolling_mean
 
 
 def test_rolling_mean_does_not_use_current_gameweek():
