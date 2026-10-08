@@ -24,3 +24,5 @@ reports/figures/*
 .env
 .ruff_cache/
 .coverage
+reports/dashboard/*
+!reports/dashboard/.gitkeep

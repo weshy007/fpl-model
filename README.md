@@ -414,14 +414,30 @@ cp .env.example .env
 ### Quick start
 
 ```bash
-python scripts/ingest_data.py --season 2021-22 --season 2022-23 --season 2023-24 --season 2024-25 --season 2025-26
-python scripts/normalize_data.py --season 2021-22 --season 2022-23 --season 2023-24 --season 2024-25 --season 2025-26
+python scripts/ingest_data.py --season 2021-22 --season 2022-23 --season 2023-24 --season 2024-25 --season 2025-26 --season 2026-27
+python scripts/normalize_data.py --season 2021-22 --season 2022-23 --season 2023-24 --season 2024-25 --season 2025-26 --season 2026-27
 python scripts/build_features.py
 python scripts/train_model.py          # walk-forward backtest + final model
 python scripts/generate_predictions.py --season 2025-26 --gameweek 20
 ```
 
 Or `make pipeline` once the data is downloaded.
+
+### Predict the upcoming Gameweek and open the dashboard
+
+```bash
+python scripts/fetch_live.py                 # official FPL API -> data/raw/<current season>/  (~2 min)
+python scripts/predict_upcoming.py           # trains, predicts, writes the dashboard
+open reports/dashboard/latest.html           # or double-click it; no server needed
+```
+
+The dashboard (a single self-contained HTML file) shows the expected points for every
+player in the next unfinished Gameweek, the top captain picks, the best XI under FPL rules,
+and a sortable, filterable table. Expected points are the model's estimate multiplied by FPL's
+own chance-of-playing flag, so injured players are discounted. The page warns you when the
+form data is more than one Gameweek behind the Gameweek being predicted.
+`fetch_live.py` needs access to `fantasy.premierleague.com`; without it the same pipeline also
+works on the community dataset (`scripts/ingest_data.py --season 2026-27`), which can lag.
 
 ### Test
 
@@ -504,10 +520,10 @@ As the project grows, large artifacts may be managed with:
 
 ### Phase 1 — Data
 
-- [ ] Official FPL API client
+- [x] Official FPL API client
 - [x] Historical data ingestion
-- [ ] Fixture ingestion
-- [ ] Player history ingestion
+- [x] Fixture ingestion
+- [x] Player history ingestion
 - [x] Data validation
 - [ ] PostgreSQL schema
 - [ ] Automated data updates
@@ -520,7 +536,7 @@ As the project grows, large artifacts may be managed with:
 - [x] Team strength
 - [x] Opponent strength
 - [x] Home/away effects
-- [ ] Availability
+- [x] Availability (FPL status flags applied after the model, not learned)
 - [x] xG/xA
 - [ ] Set-piece involvement
 - [ ] Fixture congestion
@@ -557,7 +573,7 @@ As the project grows, large artifacts may be managed with:
 
 - [ ] REST API
 - [ ] FPL team integration
-- [ ] Dashboard
+- [x] Dashboard (static HTML)
 - [ ] Scheduled inference
 - [ ] Model registry
 - [ ] Monitoring

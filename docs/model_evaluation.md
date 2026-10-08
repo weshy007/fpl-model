@@ -90,9 +90,10 @@ where predicting a tiny positive number costs a little MAE.
 
 ## 8. Production readiness
 
-Not production-ready. Missing: live ingestion of the upcoming Gameweek (the prediction script replays Gameweeks present in
-the processed data, and its final model has seen those Gameweeks, so replayed predictions are in-sample), scheduled
-inference, monitoring and a model registry.
+Not production-ready. `scripts/predict_upcoming.py` now predicts an unplayed Gameweek (training only on earlier results), but
+the live API client has not been exercised against the real endpoint by the developers, the availability discount is a fixed
+rule that has not been backtested (no historical injury feed), and scheduled inference, monitoring and a model registry are
+still missing. `scripts/generate_predictions.py` replays a past Gameweek with a model that has seen it, so it is in-sample.
 
 ## 9. Risks
 
@@ -109,7 +110,7 @@ inference, monitoring and a model registry.
 
 | Priority | Action | Success criterion |
 |---|---|---|
-| High | Add live next-Gameweek ingestion | Predictions for an unplayed Gameweek |
+| High | Run `fetch_live.py` on a networked machine and compare the dashboard with the FPL site | Fixtures, prices and flags match |
 | Medium | Separate minutes model + availability data | Better MAE for rotation-risk players |
 | Medium | Persistent-squad transfer simulation | Backtest closer to real FPL rules |
 | Low | Try XGBoost / ensembles, seed sensitivity | Stable ranking across seeds |

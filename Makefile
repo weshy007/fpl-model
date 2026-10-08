@@ -1,10 +1,13 @@
 UV ?= uv
 UV_RUN := $(UV) run
 
-.PHONY: pipeline install test test-cov lint format format-check check clean
+.PHONY: predict pipeline install test test-cov lint format format-check check clean
 
 install:
 	$(UV) sync --extra dev
+
+predict:
+	$(UV_RUN) python scripts/predict_upcoming.py
 
 pipeline:
 	$(UV_RUN) python scripts/build_features.py

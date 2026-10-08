@@ -17,9 +17,20 @@ and exact duplicate source rows.
 - MILP squad / XI / bench / captain optimizer (`scipy.optimize.milp`)
 - Decision backtest and written evaluation: `docs/model_evaluation.md`
 
+## Milestone 3 — Upcoming-Gameweek predictions and dashboard: complete (v0.2)
+
+- Official FPL API client (`scripts/fetch_live.py`) writes the same raw files as the community dataset
+- `scripts/predict_upcoming.py`: next unfinished Gameweek, trained only on earlier results,
+  availability-adjusted expected points per player
+- Self-contained HTML dashboard (`reports/dashboard/latest.html`): captain picks, best XI, sortable table
+- The API client could not be run against the live endpoint in the development sandbox (network
+  blocked); it is covered by tests with a fake server and shares its parsing with the verified
+  community-dataset path. Run `fetch_live.py` once to confirm on your machine.
+
 ## Not yet done
 
-- Live ingestion for the upcoming Gameweek, FPL team integration, API/dashboard
+- FPL team integration (your own squad), hosted API / auto-refreshing dashboard
+- Backtest of the availability adjustment (no historical injury feed)
 - Separate minutes model, availability/injury data
 - Persistent-squad transfer simulation, multi-Gameweek planning
 - PostgreSQL storage, scheduled inference, monitoring

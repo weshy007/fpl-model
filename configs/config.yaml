@@ -6,7 +6,7 @@ data:
   raw_path: data/raw
   interim_path: data/interim
   processed_path: data/processed
-  seasons: ["2021-22", "2022-23", "2023-24", "2024-25", "2025-26"]
+  seasons: ["2021-22", "2022-23", "2023-24", "2024-25", "2025-26", "2026-27"]
 
 model:
   random_seed: 42
@@ -31,3 +31,6 @@ evaluation:
   min_history: 3           # evaluate players with >= this many prior appearances
   top_k: 10
   results_path: reports/model_results
+
+dashboard:
+  output_path: reports/dashboard
