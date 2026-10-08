@@ -112,6 +112,7 @@ def test_dashboard_embeds_valid_json_and_escapes_script_tags():
             "opponent": ["CHE (H)"], "price": [8.0], "expected_points": [5.5],
             "model_points": [5.5], "availability": [1.0], "status": ["a"], "chance": [np.nan],
             "news": ["</script><b>x"], "form_5gw": [4.0], "last_gw_points": [np.nan],
+            "fpl_ep_next": [5.1], "owned_pct": [12.0], "set_pieces": ["Pen 1"],
         }
     )  # fmt: skip
     squad = predictions.assign(in_xi=True, captain=True, vice_captain=False, bench_order=0)
@@ -129,7 +130,7 @@ def test_dashboard_embeds_valid_json_and_escapes_script_tags():
 
 def write_current_season(tmp_path, results_in_target_gw=False):
     raw = tmp_path / "raw" / SEASON
-    raw.mkdir(parents=True)
+    raw.mkdir(parents=True, exist_ok=True)
     make_players().to_csv(raw / "players_raw.csv", index=False)
     teams = pd.DataFrame({"id": range(1, 11), "name": [f"Team {i}" for i in range(1, 11)]})
     teams["short_name"] = [f"T{i:02d}" for i in range(1, 11)]
@@ -234,6 +235,15 @@ def test_fetch_season_files_writes_pipeline_ready_files(tmp_path, monkeypatch):
             return {
                 "elements": players.to_dict("records"),
                 "teams": [{"id": 1, "name": "Team 1", "short_name": "T01"}],
+                "events": [
+                    {
+                        "id": 6,
+                        "is_next": True,
+                        "finished": False,
+                        "deadline_time": "2026-10-10T10:00:00Z",
+                        "chip_plays": [{"chip_name": "bboost", "num_played": 1}],
+                    }
+                ],
                 "total_players": 1000,
             }
         if path.startswith("fixtures"):
@@ -243,7 +253,145 @@ def test_fetch_season_files_writes_pipeline_ready_files(tmp_path, monkeypatch):
     monkeypatch.setattr(fpl_api, "get_json", fake_get_json)
     out = fpl_api.fetch_season_files(tmp_path / SEASON, sleep=0, progress=lambda *_: None)
 
-    for name in ("players_raw.csv", "teams.csv", "fixtures.csv", "merged_gw.csv"):
+    for name in ("players_raw.csv", "teams.csv", "fixtures.csv", "merged_gw.csv", "events.csv"):
         assert (out / name).exists()
+    assert len(list((out / "snapshots").glob("players_*.csv"))) == 1
+    events = pd.read_csv(out / "events.csv")
+    assert "chip_plays" not in events.columns and next_gameweek(make_fixtures(), events) == 6
     frame = load_historical_player_gw(out / "merged_gw.csv", SEASON, out / "teams.csv")
     assert len(frame) == 3 and frame["total_points"].eq(4).all()
+
+
+def test_next_gameweek_prefers_official_events_over_fixtures():
+    from fpl_model.data.upcoming import deadline
+
+    fixtures = make_fixtures(last_finished=5)
+    fixtures.loc[(fixtures["event"] == 6) & (fixtures["id"] == 60), "finished"] = (
+        True  # GW6 started
+    )
+    events = pd.DataFrame(
+        {
+            "id": [5, 6, 7],
+            "is_next": [False, False, True],
+            "deadline_time": ["a", "2026-10-10T10:00:00Z", "2026-10-17T10:00:00Z"],
+        }
+    )
+    assert next_gameweek(fixtures) == 6  # fixtures alone point at the match week in progress
+    assert next_gameweek(fixtures, events) == 7
+    assert deadline(events, 7) == "2026-10-17T10:00Z" and deadline(None, 7) is None
+
+
+def test_flat_frame_drops_nested_columns():
+    from fpl_model.data.fpl_api import flat_frame
+
+    frame = flat_frame([{"id": 1, "chips": [{"a": 1}], "info": {"x": 1}, "name": "n"}])
+    assert frame.columns.tolist() == ["id", "name"]
+
+
+def test_set_piece_labels():
+    from fpl_model.pipelines.upcoming import _set_piece_labels
+
+    info = pd.DataFrame(
+        {
+            "penalties_order": [1, np.nan, np.nan],
+            "corners_and_indirect_freekicks_order": [2, 1, np.nan],
+            "direct_freekicks_order": [np.nan, np.nan, np.nan],
+        }
+    )
+    assert _set_piece_labels(info).tolist() == ["Pen 1 · Cor 2", "Cor 1", ""]
+
+
+def test_predict_then_score_gameweek_builds_a_track_record(tmp_path):
+    from fpl_model.pipelines.track import load_track_record, score_gameweek, track_summary
+    from fpl_model.utils.config import load_config
+
+    write_season(tmp_path, "2025-26", 0)
+    raw = write_current_season(tmp_path)
+    players = make_players()
+    players["ep_next"] = "3.0"
+    players.to_csv(raw / "players_raw.csv", index=False)
+    config_path = make_config(tmp_path)
+    config = load_config(config_path)
+    config["predictions"] = {"path": str(tmp_path / "snapshots")}
+    config["evaluation"] = {"min_history": 1, "top_k": 5}
+    with open(config_path, "w") as handle:
+        yaml.safe_dump(config, handle)
+
+    upcoming.run(SEASON, 6, config_path)  # pre-deadline snapshot for GW6
+    assert (tmp_path / "snapshots" / f"{SEASON}_gw6.csv").exists()
+
+    write_current_season(tmp_path, results_in_target_gw=True)  # GW6 has now been played
+    scored = score_gameweek(SEASON, 6, config_path)
+    assert set(scored["predictor"]) == {"model", "fpl_ep_next", "form_5gw", "last_gw"}
+    assert scored["captain_points"].notna().all() and (scored["xi_points"] > 0).all()
+
+    score_gameweek(SEASON, 6, config_path)  # re-scoring replaces rather than duplicates
+    record = load_track_record(load_config(config_path), SEASON)
+    assert len(record) == 4
+    summary = track_summary(record)
+    assert summary["gameweeks"] == [6] and len(summary["rows"]) == 4
+
+    with pytest.raises(FileNotFoundError, match="before the deadline"):
+        score_gameweek(SEASON, 5, config_path)
+
+
+# Real records copied from https://fantasy.premierleague.com/api/bootstrap-static/ (8 Oct 2026),
+# trimmed to the fields the pipeline reads, nested lists included.
+REAL_ELEMENTS = [
+    {"id": 1, "first_name": "David", "second_name": "Raya Martín", "web_name": "Raya",
+     "element_type": 1, "team": 1, "now_cost": 61, "selected_by_percent": "42.4", "status": "a",
+     "chance_of_playing_next_round": None, "news": "", "ep_next": "7.5", "penalties_order": None,
+     "corners_and_indirect_freekicks_order": None, "direct_freekicks_order": None,
+     "price_change_projections": [{"offset": 0, "projected_percent": "2.3"}], "scout_risks": []},
+    {"id": 10, "first_name": "Benjamin", "second_name": "White", "web_name": "White",
+     "element_type": 2, "team": 1, "now_cost": 55, "selected_by_percent": "4.8", "status": "d",
+     "chance_of_playing_next_round": 75, "news": "Groin injury - 75% chance of playing",
+     "ep_next": "0.4", "penalties_order": None, "corners_and_indirect_freekicks_order": None,
+     "direct_freekicks_order": None, "price_change_projections": [], "scout_risks": []},
+    {"id": 6, "first_name": "William", "second_name": "Saliba", "web_name": "Saliba",
+     "element_type": 2, "team": 1, "now_cost": 59, "selected_by_percent": "0.2", "status": "i",
+     "chance_of_playing_next_round": 0, "news": "Back injury - Unknown return date",
+     "ep_next": "0.0", "penalties_order": None, "corners_and_indirect_freekicks_order": None,
+     "direct_freekicks_order": None, "price_change_projections": [], "scout_risks": []},
+    {"id": 12, "first_name": "Bukayo", "second_name": "Saka", "web_name": "Saka",
+     "element_type": 3, "team": 1, "now_cost": 96, "selected_by_percent": "14.3", "status": "a",
+     "chance_of_playing_next_round": None, "news": "", "ep_next": "5.0", "penalties_order": 1,
+     "corners_and_indirect_freekicks_order": 2, "direct_freekicks_order": 2,
+     "price_change_projections": [{"offset": 1}], "scout_risks": []},
+]  # fmt: skip
+
+
+def test_parses_real_bootstrap_records():
+    from fpl_model.data.fpl_api import flat_frame
+    from fpl_model.pipelines.upcoming import _set_piece_labels
+
+    players = flat_frame(REAL_ELEMENTS)
+    assert "price_change_projections" not in players.columns  # nested columns dropped
+
+    assert availability_factor(players).tolist() == [1.0, 0.75, 0.0, 1.0]
+    assert _set_piece_labels(players.set_index("id")).loc[12] == "Pen 1 · Cor 2 · FK 2"
+
+    rows = build_upcoming_rows(players, make_fixtures(), SEASON, 6, total_players=11_027_621)
+    raya = rows[rows["player_id"] == 1].iloc[0]
+    assert raya["name"] == "David Raya Martín" and raya["position"] == "GK"
+    assert raya["value"] == 61 and raya["selected"] == pytest.approx(0.424 * 11_027_621)
+
+
+def test_unfinished_gameweek_results_are_not_used_as_form(tmp_path):
+    write_season(tmp_path, "2025-26", 0)
+    raw = write_current_season(tmp_path, results_in_target_gw=True)  # partial GW6 rows exist
+    make_fixtures(last_finished=5, events=7).to_csv(raw / "fixtures.csv", index=False)
+    events = pd.DataFrame(
+        {
+            "id": range(1, 8),
+            "finished": [True] * 5 + [False, False],
+            "is_next": [False] * 6 + [True],
+            "deadline_time": "2026-10-17T10:00:00Z",
+        }
+    )
+    events.to_csv(raw / "events.csv", index=False)
+
+    result = upcoming.run(SEASON, None, make_config(tmp_path))
+    assert result["meta"]["gameweek"] == 7
+    assert result["meta"]["history_through_gw"] == 5  # GW6 is in the file but not finished
+    assert result["meta"]["deadline"] == "2026-10-17T10:00Z"

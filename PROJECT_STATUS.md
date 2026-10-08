@@ -27,6 +27,16 @@ and exact duplicate source rows.
   blocked); it is covered by tests with a fake server and shares its parsing with the verified
   community-dataset path. Run `fetch_live.py` once to confirm on your machine.
 
+## Milestone 4 — Gameweek-by-Gameweek loop: complete (v0.3)
+
+- Gameweek calendar from the official `events` (next Gameweek, deadline, finished flag)
+- Every prediction is saved before the deadline (`data/predictions/`) and later scored against real
+  results with `scripts/score_gameweek.py`, next to FPL's own `ep_next` and simple form baselines
+- Dashboard shows FPL xP, ownership, set-piece takers and the running track record
+- `fetch_live.py` archives a point-in-time player snapshot on every run
+- Tested against real records copied from the live `bootstrap-static` payload; still not run end to end
+  against the live API from the development sandbox (network blocked)
+
 ## Not yet done
 
 - FPL team integration (your own squad), hosted API / auto-refreshing dashboard

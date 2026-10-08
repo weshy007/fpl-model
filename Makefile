@@ -1,10 +1,13 @@
 UV ?= uv
 UV_RUN := $(UV) run
 
-.PHONY: predict pipeline install test test-cov lint format format-check check clean
+.PHONY: score predict pipeline install test test-cov lint format format-check check clean
 
 install:
 	$(UV) sync --extra dev
+
+score:
+	$(UV_RUN) python scripts/score_gameweek.py
 
 predict:
 	$(UV_RUN) python scripts/predict_upcoming.py

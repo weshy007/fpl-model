@@ -431,11 +431,21 @@ python scripts/predict_upcoming.py           # trains, predicts, writes the dash
 open reports/dashboard/latest.html           # or double-click it; no server needed
 ```
 
+Every gameweek, repeat (details in `docs/using_the_fpl_api.md`):
+
+```bash
+python scripts/fetch_live.py          # fresh results, prices, injury flags
+python scripts/score_gameweek.py      # grade last Gameweek's saved prediction -> track record
+python scripts/predict_upcoming.py    # predict the next Gameweek (re-run before the deadline for news)
+```
+
 The dashboard (a single self-contained HTML file) shows the expected points for every
 player in the next unfinished Gameweek, the top captain picks, the best XI under FPL rules,
 and a sortable, filterable table. Expected points are the model's estimate multiplied by FPL's
 own chance-of-playing flag, so injured players are discounted. The page warns you when the
-form data is more than one Gameweek behind the Gameweek being predicted.
+form data is more than one Gameweek behind the Gameweek being predicted. It also compares the
+model with FPL's own expected points (`ep_next`), shows ownership and set-piece takers, and, once
+Gameweeks have been scored, a track record of how each predictor actually did.
 `fetch_live.py` needs access to `fantasy.premierleague.com`; without it the same pipeline also
 works on the community dataset (`scripts/ingest_data.py --season 2026-27`), which can lag.
 

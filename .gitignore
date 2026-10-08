@@ -26,3 +26,4 @@ reports/figures/*
 .coverage
 reports/dashboard/*
 !reports/dashboard/.gitkeep
+data/predictions/*

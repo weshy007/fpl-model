@@ -106,11 +106,18 @@ still missing. `scripts/generate_predictions.py` replays a past Gameweek with a 
 - Backtest ignores transfers, hits, chips, auto-subs and price changes.
 - Source data has quirks (duplicate rows in 2025-26, `AM` rows in 2024-25, team names instead of ids); handled in the normalizer.
 
+### Experiment: defensive-contribution features
+
+FPL added defensive-contribution points in 2025-26. Rolling features for them (defensive contribution, recoveries, tackles; only
+available from 2025-26) were tested on the 2025-26 walk-forward: MAE 0.997 vs 0.985 for the base model (paired difference
++0.0125 ± 0.0027, Spearman unchanged), although the defender bias shrank (−0.135 to −0.050). Not adopted.
+
 ## 10. Recommendations
 
 | Priority | Action | Success criterion |
 |---|---|---|
 | High | Run `fetch_live.py` on a networked machine and compare the dashboard with the FPL site | Fixtures, prices and flags match |
+| Medium | Weight recent seasons more (defensive-contribution rule since 2025-26; defenders under-predicted by 0.135) | Lower DEF bias without worse MAE |
 | Medium | Separate minutes model + availability data | Better MAE for rotation-risk players |
 | Medium | Persistent-squad transfer simulation | Backtest closer to real FPL rules |
 | Low | Try XGBoost / ensembles, seed sensitivity | Stable ranking across seeds |

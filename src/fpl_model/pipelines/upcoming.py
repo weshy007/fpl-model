@@ -4,16 +4,18 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from ..dashboard import render_dashboard
 from ..data.normalize import load_historical_player_gw
-from ..data.upcoming import availability_factor, build_upcoming_rows, next_gameweek
+from ..data.upcoming import availability_factor, build_upcoming_rows, deadline, next_gameweek
 from ..features.player_features import TARGET, build_model_table, feature_columns
 from ..models.points import PointsPredictor, make_estimator
 from ..optimization.lineup import pick_squad
 from ..utils.config import load_config
 from .ingestion import load_player_gw
+from .track import load_track_record, track_summary
 
 log = logging.getLogger(__name__)
 
@@ -24,6 +26,25 @@ def _opponent_labels(rows: pd.DataFrame, short_names: dict[int, str]) -> pd.Seri
         {True: " (H)", False: " (A)"}
     )
     return label.groupby(rows["player_id"]).agg(", ".join)
+
+
+def _set_piece_labels(info: pd.DataFrame) -> pd.Series:
+    """Short text such as ``Pen 1 · Cor 2`` for designated set-piece takers (id -> label)."""
+    parts = {
+        "penalties_order": "Pen",
+        "corners_and_indirect_freekicks_order": "Cor",
+        "direct_freekicks_order": "FK",
+    }
+    labels = pd.Series("", index=info.index)
+    for column, short in parts.items():
+        if column not in info:
+            continue
+        order = pd.to_numeric(info[column], errors="coerce")
+        text = short + " " + order.astype("Int64").astype("string")
+        labels = labels.where(
+            order.isna(), labels + (labels != "").map({True: " · ", False: ""}) + text
+        )
+    return labels
 
 
 def run(
@@ -46,7 +67,8 @@ def run(
     players = pd.read_csv(raw / "players_raw.csv")
     teams = pd.read_csv(raw / "teams.csv")
     fixtures = pd.read_csv(raw / "fixtures.csv")
-    gameweek = gameweek or next_gameweek(fixtures)
+    events = pd.read_csv(raw / "events.csv") if (raw / "events.csv").exists() else None
+    gameweek = gameweek or next_gameweek(fixtures, events)
     total_file = raw / "total_players.txt"
     total_players = (
         float(total_file.read_text() or 10_000_000) if total_file.exists() else 10_000_000
@@ -59,6 +81,10 @@ def run(
     if (raw / "merged_gw.csv").exists():
         current = load_historical_player_gw(raw / "merged_gw.csv", season, raw / "teams.csv")
         current = current[current["gameweek"] < gameweek]  # never use the target Gameweek
+        if events is not None and "finished" in events.columns:
+            # A Gameweek still being played has only partial rows: not usable as form.
+            done = set(events.loc[events["finished"].astype(bool), "id"].astype(int))
+            current = current[current["gameweek"].isin(done)]
         if not current.empty:
             history_through = int(current["gameweek"].max())
             history.append(current)
@@ -100,6 +126,14 @@ def run(
     short = dict(zip(teams["id"], teams["short_name"]))
     target_rows["team"] = target_rows["team_id"].map(short)
     target_rows["opponent"] = target_rows["player_id"].map(_opponent_labels(upcoming, short))
+    target_rows["fpl_ep_next"] = pd.to_numeric(
+        target_rows["player_id"].map(info["ep_next"]) if "ep_next" in info else np.nan,
+        errors="coerce",
+    )
+    target_rows["owned_pct"] = pd.to_numeric(
+        target_rows["player_id"].map(info["selected_by_percent"]), errors="coerce"
+    )
+    target_rows["set_pieces"] = target_rows["player_id"].map(_set_piece_labels(info))
     target_rows["price"] = target_rows["value"] / 10
     target_rows["form_5gw"] = target_rows["pts_roll5"]
     target_rows["last_gw_points"] = target_rows["pts_last"]
@@ -107,7 +141,8 @@ def run(
     columns = [
         "player_id", "name", "web_name", "team", "position", "opponent", "price",
         "expected_points", "model_points", "availability", "status", "chance", "news",
-        "form_5gw", "last_gw_points", "n_fixtures", "prior_gws", "team_id", "value",
+        "fpl_ep_next", "owned_pct", "set_pieces", "form_5gw", "last_gw_points",
+        "n_fixtures", "prior_gws", "team_id", "value",
     ]  # fmt: skip
     predictions = (
         target_rows[columns]
@@ -123,12 +158,20 @@ def run(
         "generated_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
         "train_rows": len(train),
         "note": note,
+        "deadline": deadline(events, gameweek),
     }
+    # Immutable-by-habit record of what we predicted before the deadline; scored later.
+    snapshots = Path(config.get("predictions", {}).get("path", "data/predictions"))
+    snapshots.mkdir(parents=True, exist_ok=True)
+    predictions.assign(generated_at=meta["generated_at"], season=season, gameweek=gameweek).to_csv(
+        snapshots / f"{season}_gw{gameweek}.csv", index=False
+    )
+
     out = Path(config["dashboard"]["output_path"])
     out.mkdir(parents=True, exist_ok=True)
     stem = f"{season}_gw{gameweek}"
-    predictions.to_csv(out / f"{stem}_predictions.csv", index=False)
-    html = render_dashboard(predictions, squad, meta)
+    track = track_summary(load_track_record(config, season))
+    html = render_dashboard(predictions, squad, meta, track)
     (out / f"{stem}.html").write_text(html, encoding="utf-8")
     (out / "latest.html").write_text(html, encoding="utf-8")
     log.info("Wrote %s", out / f"{stem}.html")

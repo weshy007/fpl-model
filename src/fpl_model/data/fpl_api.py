@@ -8,6 +8,7 @@ the rest of the pipeline does not care where the data came from.
 from __future__ import annotations
 
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -42,6 +43,13 @@ def get_json(path: str, session: requests.Session | None = None, retries: int = 
     raise RuntimeError(f"FPL API request failed for {path!r}: {last_error}")
 
 
+def flat_frame(records: list[dict]) -> pd.DataFrame:
+    """DataFrame from API records without nested list/dict columns (CSV friendly)."""
+    frame = pd.DataFrame(records)
+    nested = [c for c in frame.columns if frame[c].map(lambda v: isinstance(v, list | dict)).any()]
+    return frame.drop(columns=nested)
+
+
 def history_frame(
     element_id: int, history: list[dict], name: str, team_id: int, element_type: int
 ) -> pd.DataFrame:
@@ -66,12 +74,20 @@ def fetch_season_files(season_dir: str | Path, sleep: float = 0.1, progress=prin
     out.mkdir(parents=True, exist_ok=True)
     with requests.Session() as session:
         bootstrap = get_json("bootstrap-static/", session)
-        elements = pd.DataFrame(bootstrap["elements"])
-        teams = pd.DataFrame(bootstrap["teams"])
+        elements = flat_frame(bootstrap["elements"])
+        teams = flat_frame(bootstrap["teams"])
+        events = flat_frame(bootstrap["events"])
         fixtures = pd.DataFrame(get_json("fixtures/", session))
 
         elements.to_csv(out / "players_raw.csv", index=False)
         teams.to_csv(out / "teams.csv", index=False)
+        events.to_csv(out / "events.csv", index=False)
+        # Point-in-time copy: injury flags, ownership, prices and set-piece takers are not
+        # available historically, so keep one per fetch to build that dataset over the season.
+        snapshots = out / "snapshots"
+        snapshots.mkdir(exist_ok=True)
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%MZ")
+        elements.to_csv(snapshots / f"players_{stamp}.csv", index=False)
         fixtures.drop(columns=["stats"], errors="ignore").to_csv(out / "fixtures.csv", index=False)
         (out / "total_players.txt").write_text(str(bootstrap.get("total_players", "")))
 

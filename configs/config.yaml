@@ -34,3 +34,6 @@ evaluation:
 
 dashboard:
   output_path: reports/dashboard
+
+predictions:
+  path: data/predictions   # one snapshot per Gameweek + track_record.csv

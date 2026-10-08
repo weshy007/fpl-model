@@ -9,7 +9,7 @@ import pandas as pd
 PLAYER_FIELDS = [
     "name", "web_name", "team", "position", "opponent", "price", "expected_points",
     "model_points", "availability", "status", "chance", "news", "form_5gw",
-    "last_gw_points",
+    "last_gw_points", "fpl_ep_next", "owned_pct", "set_pieces",
 ]  # fmt: skip
 
 
@@ -18,7 +18,9 @@ def _records(frame: pd.DataFrame, fields: list[str]) -> list[dict]:
     return clean.to_dict("records")
 
 
-def render_dashboard(predictions: pd.DataFrame, squad: pd.DataFrame, meta: dict) -> str:
+def render_dashboard(
+    predictions: pd.DataFrame, squad: pd.DataFrame, meta: dict, track: dict | None = None
+) -> str:
     """Return the dashboard HTML for one Gameweek."""
     xi = squad[squad["in_xi"]]
     bench = squad[~squad["in_xi"]].sort_values("bench_order")
@@ -26,6 +28,7 @@ def render_dashboard(predictions: pd.DataFrame, squad: pd.DataFrame, meta: dict)
     xi_rows = _records(xi, fields)
     payload = {
         "meta": meta,
+        "track": track,
         "players": _records(predictions, PLAYER_FIELDS),
         "xi": [
             {**row, "captain": bool(c), "vice": bool(v)}
@@ -93,12 +96,13 @@ input,select { padding:8px 10px; border-radius:8px; border:1px solid var(--line)
 label.chk { font-size:14px; color:var(--muted); display:flex; gap:6px; align-items:center; }
 .tablewrap { overflow-x:auto; background:var(--card); border:1px solid var(--line);
   border-radius:12px; }
-table { border-collapse:collapse; width:100%; min-width:760px; }
+table { border-collapse:collapse; width:100%; min-width:900px; }
 th,td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
 th { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted);
   cursor:pointer; user-select:none; position:sticky; top:0; background:var(--card); }
 th.sorted::after { content:" ▼"; } th.sorted.asc::after { content:" ▲"; }
 td.num,th.num { text-align:right; }
+td.sp { color:var(--muted); font-size:13px; }
 td.st { max-width:260px; overflow:hidden; text-overflow:ellipsis; }
 .bar { display:inline-block; height:6px; border-radius:3px; background:var(--accent);
   margin-right:8px; vertical-align:middle; }
@@ -122,6 +126,16 @@ td.st { max-width:260px; overflow:hidden; text-overflow:ellipsis; }
   <div class="pitch" id="xi"></div>
   <div class="sub" style="margin-top:6px">Ignores your current squad: it is the best 15 / XI
     from scratch within £100.0m, 3 players per club and the formation limits.</div>
+
+  <div id="trackwrap" hidden>
+    <h2>Track record <span class="sub" id="trackgws"></span></h2>
+    <div class="tablewrap"><table style="min-width:520px"><thead><tr>
+      <th>Predictor</th><th class="num">MAE</th><th class="num">Rank corr.</th>
+      <th class="num">Top-10 pts</th><th class="num">Captain pts</th><th class="num">XI pts</th>
+    </tr></thead><tbody id="track"></tbody></table></div>
+    <div class="sub" style="margin-top:6px">Average over gameweeks already played, scored from the
+      predictions saved before each deadline. "fpl_ep_next" is FPL's own expected-points figure.</div>
+  </div>
 
   <h2>All players</h2>
   <div class="controls">
@@ -157,7 +171,8 @@ td.st { max-width:260px; overflow:hidden; text-overflow:ellipsis; }
     function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); };
 
   $("title").textContent = "Gameweek " + meta.gameweek + " predictions";
-  $("subtitle").textContent = meta.season + " · generated " + meta.generated_at +
+  $("subtitle").textContent = meta.season + (meta.deadline ? " · deadline " + meta.deadline.replace("T", " ").replace("Z", " UTC") : "") +
+    " · generated " + meta.generated_at +
     " · trained on " + meta.train_rows.toLocaleString() + " player-gameweeks";
 
   var banners = [];
@@ -194,13 +209,26 @@ td.st { max-width:260px; overflow:hidden; text-overflow:ellipsis; }
   html += '<div class="bench sub">Bench</div><div class="line">' + D.bench.map(chip).join("") + "</div>";
   $("xi").innerHTML = html;
 
+  if (D.track && D.track.rows.length) {
+    $("trackwrap").hidden = false;
+    var gws = D.track.gameweeks;
+    $("trackgws").textContent = "· GW" + gws[0] + (gws.length > 1 ? "–GW" + gws[gws.length - 1] : "") +
+      " (" + gws.length + " scored)";
+    $("track").innerHTML = D.track.rows.map(function (r) {
+      return "<tr><td><b>" + esc(r.predictor) + '</b></td><td class="num">' + fmt(r.mae, 2) + '</td><td class="num">' +
+        fmt(r.spearman, 2) + '</td><td class="num">' + fmt(r.top10_points) + '</td><td class="num">' +
+        fmt(r.captain_points) + '</td><td class="num">' + fmt(r.xi_points) + "</td></tr>"; }).join("");
+  }
+
   var teams = Array.from(new Set(P.map(function (p) { return p.team; }))).sort();
   $("team").innerHTML += teams.map(function (t) { return "<option>" + esc(t) + "</option>"; }).join("");
 
   var cols = [
     ["Player", "web_name", false], ["Pos", "position", false], ["Team", "team", false],
-    ["Opp", "opponent", false], ["Price", "price", true], ["Form (5 GW)", "form_5gw", true],
-    ["Model", "model_points", true], ["Exp. pts", "expected_points", true], ["Availability", "availability", false]
+    ["Opp", "opponent", false], ["Price", "price", true], ["Own %", "owned_pct", true],
+    ["Form (5 GW)", "form_5gw", true], ["FPL xP", "fpl_ep_next", true],
+    ["Model", "model_points", true], ["Exp. pts", "expected_points", true],
+    ["Set pieces", "set_pieces", false], ["Availability", "availability", false]
   ];
   var sortKey = "expected_points", asc = false, showAll = false, LIMIT = 100;
   $("head").innerHTML = cols.map(function (c) {
@@ -238,10 +266,11 @@ td.st { max-width:260px; overflow:hidden; text-overflow:ellipsis; }
     $("rows").innerHTML = rows.map(function (p) {
       return "<tr><td><b>" + esc(p.web_name) + '</b></td><td><span class="pos">' + esc(p.position) + "</span></td><td>" +
         esc(p.team) + "</td><td>" + esc(p.opponent) + '</td><td class="num">£' + fmt(p.price) + "m</td>" +
-        '<td class="num">' + fmt(p.form_5gw) + '</td><td class="num">' + fmt(p.model_points) + "</td>" +
+        '<td class="num">' + fmt(p.owned_pct) + '%</td><td class="num">' + fmt(p.form_5gw) + '</td><td class="num">' +
+        fmt(p.fpl_ep_next) + '</td><td class="num">' + fmt(p.model_points) + "</td>" +
         '<td class="num"><span class="bar" style="width:' + Math.round(p.expected_points / max * 60) + 'px"></span><b>' +
-        fmt(p.expected_points) + '</b></td><td class="st">' + status(p) + "</td></tr>";
-    }).join("") || '<tr><td colspan="9" class="sub">No players match.</td></tr>';
+        fmt(p.expected_points) + '</b></td><td class="sp">' + esc(p.set_pieces) + '</td><td class="st">' + status(p) + "</td></tr>";
+    }).join("") || '<tr><td colspan="12" class="sub">No players match.</td></tr>';
     Array.prototype.forEach.call($("head").children, function (th) {
       th.className = (th.className.replace(/ ?(sorted|asc)/g, "")) +
         (th.getAttribute("data-k") === sortKey ? " sorted" + (asc ? " asc" : "") : "");

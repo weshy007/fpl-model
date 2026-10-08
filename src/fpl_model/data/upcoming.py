@@ -9,12 +9,30 @@ POSITION_BY_TYPE = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
 UNAVAILABLE_STATUSES = {"i", "s", "u", "n"}  # injured, suspended, unavailable, not in squad
 
 
-def next_gameweek(fixtures: pd.DataFrame) -> int:
-    """First Gameweek that still has an unfinished fixture."""
+def next_gameweek(fixtures: pd.DataFrame, events: pd.DataFrame | None = None) -> int:
+    """The Gameweek whose deadline has not passed yet.
+
+    The official ``events`` table (``is_next``) is authoritative: while a
+    Gameweek is in progress its fixtures are only partly finished, so the
+    fixtures alone would wrongly point at the Gameweek being played. Without
+    events, the first Gameweek with an unfinished fixture is used.
+    """
+    if events is not None and "is_next" in events.columns:
+        upcoming = events[events["is_next"].astype(bool)]
+        if not upcoming.empty:
+            return int(upcoming["id"].iloc[0])
     open_fixtures = fixtures[~fixtures["finished"].astype(bool)]
     if open_fixtures.empty:
         raise ValueError("Every fixture is finished; there is no upcoming Gameweek.")
     return int(open_fixtures["event"].min())
+
+
+def deadline(events: pd.DataFrame | None, gameweek: int) -> str | None:
+    """Deadline of a Gameweek as ``YYYY-MM-DDTHH:MMZ`` (UTC), if events are known."""
+    if events is None or "deadline_time" not in events.columns:
+        return None
+    row = events[events["id"] == gameweek]
+    return None if row.empty else str(row["deadline_time"].iloc[0])[:16] + "Z"
 
 
 def availability_factor(players: pd.DataFrame) -> pd.Series:
