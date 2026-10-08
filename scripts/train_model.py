@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 
-from fpl_model.pipelines.training import run
-from fpl_model.utils.logging import configure_logging
+from src.pipelines.training import run
+from src.utils.logging import configure_logging
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Backtest and train the points model.")

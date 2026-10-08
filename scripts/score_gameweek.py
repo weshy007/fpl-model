@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from fpl_model.pipelines.track import score_gameweek
+from src.pipelines.track import score_gameweek
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Score a finished Gameweek's saved predictions.")

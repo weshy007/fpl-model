@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 
-from fpl_model.pipelines.upcoming import run
-from fpl_model.utils.logging import configure_logging
+from src.pipelines.upcoming import run
+from src.utils.logging import configure_logging
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predict points for the upcoming Gameweek.")

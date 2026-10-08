@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from fpl_model.data.fpl_api import fetch_season_files
-from fpl_model.utils.config import load_config
+from src.data.fpl_api import fetch_season_files
+from src.utils.config import load_config
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

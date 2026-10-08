@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from fpl_model.pipelines.prediction import run
+from src.pipelines.prediction import run
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Recommend a squad for one Gameweek.")

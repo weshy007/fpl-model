@@ -2,16 +2,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from fpl_model.features.player_features import (
+from src.features.player_features import (
     TARGET,
     build_model_table,
     feature_columns,
 )
-from fpl_model.models.evaluation import paired_gap, per_gameweek_metrics
-from fpl_model.models.points import make_estimator
-from fpl_model.models.validation import walk_forward_predictions
-from fpl_model.optimization.lineup import pick_squad
-from fpl_model.optimization.simulate import score_squad
+from src.models.evaluation import paired_gap, per_gameweek_metrics
+from src.models.points import make_estimator
+from src.models.validation import walk_forward_predictions
+from src.optimization.lineup import pick_squad
+from src.optimization.simulate import score_squad
 
 POSITIONS = ["GK"] * 4 + ["DEF"] * 10 + ["MID"] * 10 + ["FWD"] * 6
 

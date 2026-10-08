@@ -314,58 +314,39 @@ Questions we want to answer:
 
 ```text
 fpl-ai/
-├── .github/
-│   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.md
-│   │   ├── feature_request.md
-│   │   └── model_experiment.md
-│   └── workflows/
-│       └── ci.yml
+├── .github/                    # CI workflow + issue templates
 ├── configs/
-│   └── config.yaml
-├── data/
-│   ├── raw/
-│   ├── interim/
-│   ├── processed/
-│   └── README.md
+│   └── config.yaml             # seasons, features, model, evaluation, output paths
+├── data/                       # generated, not tracked (raw/, interim/, processed/, predictions/)
 ├── docs/
-│   └── architecture.md
-├── models/
-│   └── .gitkeep
-├── notebooks/
-│   └── .gitkeep
+│   ├── architecture.md
+│   ├── model_evaluation.md     # backtest results and limitations
+│   └── using_the_fpl_api.md    # what the official API offers and how it is used
+├── models/                     # saved model artifacts (not tracked)
 ├── reports/
-│   ├── figures/
-│   └── model_results/
-├── scripts/
-│   ├── build_features.py
-│   ├── generate_predictions.py
-│   ├── ingest_data.py
-│   └── train_model.py
-├── src/
-│   └── fpl_model/
-│       ├── data/
-│       ├── features/
-│       ├── models/
-│       ├── optimization/
-│       ├── pipelines/
-│       └── utils/
+│   ├── dashboard/              # generated HTML dashboards (not tracked)
+│   └── model_results/          # generated backtest tables (not tracked)
+├── scripts/                    # command-line entry points
+│   ├── ingest_data.py          #   download historical seasons
+│   ├── normalize_data.py       #   clean them into canonical tables
+│   ├── build_features.py       #   leakage-free feature table
+│   ├── train_model.py          #   walk-forward backtest + final model
+│   ├── fetch_live.py           #   current season from the official FPL API
+│   ├── predict_upcoming.py     #   next Gameweek -> CSV + dashboard
+│   ├── score_gameweek.py       #   grade a saved prediction -> track record
+│   └── generate_predictions.py #   replay a past Gameweek
+├── src/                        # the importable package (`import src`)
+│   ├── dashboard.py            #   self-contained HTML dashboard
+│   ├── data/                   #   download, FPL API client, schema, validation, normalization
+│   ├── features/               #   player, team and fixture features
+│   ├── models/                 #   LightGBM points model, validation, metrics
+│   ├── optimization/           #   squad / XI / captain optimizer, decision backtest
+│   ├── pipelines/              #   ingestion, training, upcoming prediction, track record
+│   └── utils/                  #   config and logging
 ├── tests/
-│   ├── test_data.py
-│   ├── test_features.py
-│   ├── test_models.py
-│   └── test_optimization.py
-├── .editorconfig
-├── .env.example
-├── .gitignore
-├── .pre-commit-config.yaml
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── LICENSE
-├── Makefile
-├── PROJECT_STATUS.md
+├── instructions.md             # how to set up and run everything
 ├── pyproject.toml
-├── SECURITY.md
+├── Makefile
 └── README.md
 ```
 

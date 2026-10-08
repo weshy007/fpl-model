@@ -1,8 +1,8 @@
 import numpy as np
 from sklearn.dummy import DummyRegressor
 
-from fpl_model.models.evaluation import regression_metrics
-from fpl_model.models.points import PointsPredictor
+from src.models.evaluation import regression_metrics
+from src.models.points import PointsPredictor
 
 
 def test_points_predictions_are_non_negative():

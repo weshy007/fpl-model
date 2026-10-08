@@ -31,13 +31,17 @@ dev = [
     "ruff>=0.9.0",
 ]
 
+[tool.uv.build-backend]
+module-name = "src"
+module-root = ""
+
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
 build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "."]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100
@@ -46,5 +50,8 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
 [tool.ruff.lint.per-file-ignores]
-"src/fpl_model/dashboard.py" = ["E501"]  # embedded HTML/JS template
+"src/dashboard.py" = ["E501"]  # embedded HTML/JS template

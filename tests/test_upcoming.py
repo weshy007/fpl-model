@@ -6,11 +6,11 @@ import pandas as pd
 import pytest
 import yaml
 
-from fpl_model.dashboard import render_dashboard
-from fpl_model.data.fpl_api import history_frame
-from fpl_model.data.normalize import normalize_player_gw
-from fpl_model.data.upcoming import availability_factor, build_upcoming_rows, next_gameweek
-from fpl_model.pipelines import upcoming
+from src.dashboard import render_dashboard
+from src.data.fpl_api import history_frame
+from src.data.normalize import normalize_player_gw
+from src.data.upcoming import availability_factor, build_upcoming_rows, next_gameweek
+from src.pipelines import upcoming
 from tests.test_normalize import raw_row
 from tests.test_pipeline import POSITIONS
 from tests.test_pipeline_e2e import write_season
@@ -215,8 +215,8 @@ def test_injured_player_is_discounted(tmp_path):
 
 
 def test_fetch_season_files_writes_pipeline_ready_files(tmp_path, monkeypatch):
-    from fpl_model.data import fpl_api
-    from fpl_model.data.normalize import load_historical_player_gw
+    from src.data import fpl_api
+    from src.data.normalize import load_historical_player_gw
 
     players = make_players().head(3)
     history = {
@@ -263,7 +263,7 @@ def test_fetch_season_files_writes_pipeline_ready_files(tmp_path, monkeypatch):
 
 
 def test_next_gameweek_prefers_official_events_over_fixtures():
-    from fpl_model.data.upcoming import deadline
+    from src.data.upcoming import deadline
 
     fixtures = make_fixtures(last_finished=5)
     fixtures.loc[(fixtures["event"] == 6) & (fixtures["id"] == 60), "finished"] = (
@@ -282,14 +282,14 @@ def test_next_gameweek_prefers_official_events_over_fixtures():
 
 
 def test_flat_frame_drops_nested_columns():
-    from fpl_model.data.fpl_api import flat_frame
+    from src.data.fpl_api import flat_frame
 
     frame = flat_frame([{"id": 1, "chips": [{"a": 1}], "info": {"x": 1}, "name": "n"}])
     assert frame.columns.tolist() == ["id", "name"]
 
 
 def test_set_piece_labels():
-    from fpl_model.pipelines.upcoming import _set_piece_labels
+    from src.pipelines.upcoming import _set_piece_labels
 
     info = pd.DataFrame(
         {
@@ -302,8 +302,8 @@ def test_set_piece_labels():
 
 
 def test_predict_then_score_gameweek_builds_a_track_record(tmp_path):
-    from fpl_model.pipelines.track import load_track_record, score_gameweek, track_summary
-    from fpl_model.utils.config import load_config
+    from src.pipelines.track import load_track_record, score_gameweek, track_summary
+    from src.utils.config import load_config
 
     write_season(tmp_path, "2025-26", 0)
     raw = write_current_season(tmp_path)
@@ -362,8 +362,8 @@ REAL_ELEMENTS = [
 
 
 def test_parses_real_bootstrap_records():
-    from fpl_model.data.fpl_api import flat_frame
-    from fpl_model.pipelines.upcoming import _set_piece_labels
+    from src.data.fpl_api import flat_frame
+    from src.pipelines.upcoming import _set_piece_labels
 
     players = flat_frame(REAL_ELEMENTS)
     assert "price_change_projections" not in players.columns  # nested columns dropped

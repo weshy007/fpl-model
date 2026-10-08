@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
-from fpl_model.data.normalize import load_historical_player_gw, normalize_player_gw
-from fpl_model.data.validation import validate_player_gw
+from src.data.normalize import load_historical_player_gw, normalize_player_gw
+from src.data.validation import validate_player_gw
 
 
 def raw_row(**overrides):

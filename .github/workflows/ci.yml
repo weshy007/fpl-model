@@ -36,4 +36,4 @@ jobs:
         run: ruff format --check .
 
       - name: Run tests
-        run: pytest --cov=src/fpl_model --cov-report=term-missing
+        run: pytest --cov=src --cov-report=term-missing

@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from fpl_model.data.download import write_manifest
+from src.data.download import write_manifest
 
 
 def test_write_manifest(tmp_path: Path):

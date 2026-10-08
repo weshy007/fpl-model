@@ -1,7 +1,7 @@
 import pandas as pd
 import yaml
 
-from fpl_model.pipelines import prediction, training
+from src.pipelines import prediction, training
 from tests.test_pipeline import synthetic_player_gw
 
 

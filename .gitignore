@@ -19,8 +19,6 @@ models/*
 !models/.gitkeep
 reports/model_results/*
 !reports/model_results/.gitkeep
-reports/figures/*
-!reports/figures/.gitkeep
 .env
 .ruff_cache/
 .coverage

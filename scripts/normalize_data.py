@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from fpl_model.data.normalize import load_historical_player_gw, write_player_gw
+from src.data.normalize import load_historical_player_gw, write_player_gw
 
 
 def parse_args() -> argparse.Namespace:

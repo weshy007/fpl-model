@@ -20,7 +20,7 @@ test:
 	$(UV_RUN) pytest
 
 test-cov:
-	$(UV_RUN) pytest --cov=src/fpl_model --cov-report=term-missing
+	$(UV_RUN) pytest --cov=src --cov-report=term-missing
 
 lint:
 	$(UV_RUN) ruff check .

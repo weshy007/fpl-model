@@ -3,9 +3,9 @@ from __future__ import annotations
 import argparse
 import logging
 
-from fpl_model.pipelines.training import build_features
-from fpl_model.utils.config import load_config
-from fpl_model.utils.logging import configure_logging
+from src.pipelines.training import build_features
+from src.utils.config import load_config
+from src.utils.logging import configure_logging
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build the player-Gameweek feature table.")
