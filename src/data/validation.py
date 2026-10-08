@@ -26,24 +26,26 @@ def require_unique_key(frame: pd.DataFrame, columns: list[str]) -> None:
 
 
 def validate_points(frame: pd.DataFrame, column: str = "total_points") -> None:
-    """Validate that an FPL points column contains finite non-negative values."""
+    """Validate that an FPL points column is numeric and finite.
+
+    Negative values are legitimate (red cards, own goals, yellow cards).
+    """
     values = pd.to_numeric(frame[column], errors="coerce")
     if values.isna().any():
         raise ValueError(f"Column {column!r} contains non-numeric values")
     if not np.isfinite(values).all():
         raise ValueError(f"Column {column!r} contains non-finite values")
-    if (values < 0).any():
-        raise ValueError(f"Column {column!r} contains negative values")
 
 
 def validate_player_gw(frame: pd.DataFrame) -> None:
     """Validate the canonical player/Gameweek table.
 
     This is intentionally strict: downstream feature engineering assumes one
-    row per player per Gameweek and a stable set of identifiers/types.
+    row per player per fixture and a stable set of identifiers/types.
     """
     require_columns(frame, set(PLAYER_GW_REQUIRED_COLUMNS))
-    require_unique_key(frame, ["season", "gameweek", "player_id"])
+    # Grain is one row per player per fixture so double gameweeks stay valid.
+    require_unique_key(frame, ["season", "gameweek", "player_id", "fixture_id"])
 
     if frame.empty:
         raise ValueError("player_gw cannot be empty")
@@ -71,7 +73,14 @@ def validate_player_gw(frame: pd.DataFrame) -> None:
     if frame["position"].isna().any():
         raise ValueError("Column 'position' contains missing values")
 
-    for column in ["minutes", "starts", "goals_scored", "assists", "clean_sheets", "goals_conceded"]:
+    for column in [
+        "minutes",
+        "starts",
+        "goals_scored",
+        "assists",
+        "clean_sheets",
+        "goals_conceded",
+    ]:
         values = pd.to_numeric(frame[column], errors="coerce")
         if values.isna().any() or not np.isfinite(values).all():
             raise ValueError(f"Column {column!r} contains invalid numeric values")
@@ -89,6 +98,4 @@ def validate_player_gw(frame: pd.DataFrame) -> None:
             continue
         actual = str(frame[column].dtype)
         if actual != expected:
-            raise ValueError(
-                f"Column {column!r} has dtype {actual!r}; expected {expected!r}"
-            )
+            raise ValueError(f"Column {column!r} has dtype {actual!r}; expected {expected!r}")

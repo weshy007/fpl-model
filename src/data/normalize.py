@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import pandas as pd
 
 from .schema import (
+    NON_PLAYER_POSITIONS,
     PLAYER_GW_COLUMNS,
     SOURCE_ALIASES,
     VALID_POSITIONS,
@@ -99,7 +101,19 @@ def _position_series(frame: pd.DataFrame) -> pd.Series:
     else:
         mapped = values
 
-    mapped = mapped.astype("string").str.upper().replace({"GOALKEEPER": "GK", "DEFENDER": "DEF", "MIDFIELDER": "MID", "FORWARD": "FWD"})
+    mapped = (
+        mapped.astype("string")
+        .str.upper()
+        .replace(
+            {
+                "GKP": "GK",
+                "GOALKEEPER": "GK",
+                "DEFENDER": "DEF",
+                "MIDFIELDER": "MID",
+                "FORWARD": "FWD",
+            }
+        )
+    )
 
     invalid = sorted(set(mapped.dropna()) - VALID_POSITIONS)
     if invalid:
@@ -116,7 +130,11 @@ def _numeric_series(frame: pd.DataFrame, canonical: str, *, required: bool) -> p
     return pd.to_numeric(frame[source], errors="coerce")
 
 
-def normalize_player_gw(frame: pd.DataFrame, season: str) -> pd.DataFrame:
+def normalize_player_gw(
+    frame: pd.DataFrame,
+    season: str,
+    team_ids: dict[str, int] | None = None,
+) -> pd.DataFrame:
     """Convert one raw merged-GW dataframe into the canonical player_gw schema.
 
     The output has exactly one row per player/Gameweek. Source-specific names
@@ -124,11 +142,23 @@ def normalize_player_gw(frame: pd.DataFrame, season: str) -> pd.DataFrame:
     """
     require_columns(frame, ["name"])
 
+    position_source = _first_existing(frame, SOURCE_ALIASES["position"])
+    if position_source is not None and not pd.api.types.is_numeric_dtype(frame[position_source]):
+        is_player = ~frame[position_source].astype("string").str.upper().isin(NON_PLAYER_POSITIONS)
+        frame = frame.loc[is_player].reset_index(drop=True)
+
     output = pd.DataFrame(index=frame.index)
     output["season"] = pd.Series(str(season), index=frame.index, dtype="string")
     output["gameweek"] = _numeric_series(frame, "gameweek", required=True)
     output["player_id"] = _numeric_series(frame, "player_id", required=True)
     output["name"] = frame["name"].astype("string").str.strip()
+    if (
+        team_ids is not None
+        and "team" in frame.columns
+        and not pd.api.types.is_numeric_dtype(frame["team"])
+    ):
+        # Newer dumps store team names; map them to numeric ids via teams.csv.
+        frame = frame.assign(team=frame["team"].map(team_ids))
     output["team_id"] = _numeric_series(frame, "team_id", required=True)
     output["position"] = _position_series(frame)
     output["fixture_id"] = _numeric_series(frame, "fixture_id", required=True)
@@ -144,11 +174,10 @@ def normalize_player_gw(frame: pd.DataFrame, season: str) -> pd.DataFrame:
         output["kickoff_time"] = (
             pd.to_datetime(frame[kickoff_source], errors="coerce", utc=True)
             .dt.tz_convert(None)
+            .astype("datetime64[ns]")  # pandas 3 defaults to a coarser unit
         )
     else:
-        output["kickoff_time"] = pd.Series(
-            pd.NaT, index=frame.index, dtype="datetime64[ns]"
-        )
+        output["kickoff_time"] = pd.Series(pd.NaT, index=frame.index, dtype="datetime64[ns]")
 
     for column in _INT_COLUMNS:
         if column in {"gameweek", "player_id", "team_id", "fixture_id", "opponent_team_id"}:
@@ -183,10 +212,31 @@ def normalize_player_gw(frame: pd.DataFrame, season: str) -> pd.DataFrame:
     return output
 
 
-def load_historical_player_gw(path: str | Path, season: str) -> pd.DataFrame:
-    """Load and normalize a historical ``gws/merged_gw.csv`` file."""
-    frame = pd.read_csv(path)
-    return normalize_player_gw(frame, season)
+def load_historical_player_gw(
+    path: str | Path,
+    season: str,
+    teams_path: str | Path | None = None,
+) -> pd.DataFrame:
+    """Load and normalize a historical ``gws/merged_gw.csv`` file.
+
+    ``teams_path`` (the season's ``teams.csv``) is only needed when the source
+    stores team names instead of numeric ids.
+    """
+    frame = pd.read_csv(path, low_memory=False)
+    # Some upstream dumps contain byte-identical repeated rows; only exact
+    # copies are dropped so genuine key conflicts still fail validation.
+    exact_duplicates = int(frame.duplicated().sum())
+    if exact_duplicates:
+        warnings.warn(
+            f"{season}: dropped {exact_duplicates} exact duplicate source rows",
+            stacklevel=2,
+        )
+        frame = frame.drop_duplicates().reset_index(drop=True)
+    team_ids = None
+    if teams_path is not None and Path(teams_path).exists():
+        teams = pd.read_csv(teams_path)
+        team_ids = dict(zip(teams["name"], teams["id"]))
+    return normalize_player_gw(frame, season, team_ids)
 
 
 def write_player_gw(frame: pd.DataFrame, destination: str | Path) -> Path:

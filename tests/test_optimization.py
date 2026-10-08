@@ -1,8 +1,7 @@
 import pytest
 
-from fpl_ai.optimization.lineup import validate_formation
-from fpl_ai.optimization.squad import validate_squad_size
-from fpl_ai.optimization.transfers import transfer_gain
+from src.optimization.lineup import validate_formation
+from src.optimization.squad import validate_squad_size
 
 
 def test_valid_formation():
@@ -16,7 +15,3 @@ def test_invalid_formation():
 
 def test_squad_size():
     validate_squad_size(list(range(15)))
-
-
-def test_transfer_gain():
-    assert transfer_gain(7.5, 5.0) == 2.5

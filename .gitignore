@@ -9,3 +9,19 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Data and model artifacts (reproduce with the scripts; see data/README.md)
+data/raw/*
+data/interim/*
+data/processed/*
+!data/README.md
+models/*
+!models/.gitkeep
+reports/model_results/*
+!reports/model_results/.gitkeep
+.env
+.ruff_cache/
+.coverage
+reports/dashboard/*
+!reports/dashboard/.gitkeep
+data/predictions/*

@@ -1,16 +1,26 @@
 UV ?= uv
 UV_RUN := $(UV) run
 
-.PHONY: install test test-cov lint format format-check check clean
+.PHONY: score predict pipeline install test test-cov lint format format-check check clean
 
 install:
-	$(UV) sync
+	$(UV) sync --extra dev
+
+score:
+	$(UV_RUN) python scripts/score_gameweek.py
+
+predict:
+	$(UV_RUN) python scripts/predict_upcoming.py
+
+pipeline:
+	$(UV_RUN) python scripts/build_features.py
+	$(UV_RUN) python scripts/train_model.py
 
 test:
 	$(UV_RUN) pytest
 
 test-cov:
-	$(UV_RUN) pytest --cov=src/fpl_model --cov-report=term-missing
+	$(UV_RUN) pytest --cov=src --cov-report=term-missing
 
 lint:
 	$(UV_RUN) ruff check .

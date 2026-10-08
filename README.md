@@ -11,7 +11,7 @@ The system separates two problems:
 
 ## Project Status
 
-**Early development — project foundation.** Prediction and optimization functionality is not yet production-ready.
+**Early development — working baseline.** A simple end-to-end pipeline exists (data → features → LightGBM expected-points model → squad/XI/captain optimizer → walk-forward backtest). It is a research prototype, not production-ready. See `docs/model_evaluation.md` for results and limitations.
 
 ## Goals
 
@@ -314,58 +314,39 @@ Questions we want to answer:
 
 ```text
 fpl-ai/
-├── .github/
-│   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.md
-│   │   ├── feature_request.md
-│   │   └── model_experiment.md
-│   └── workflows/
-│       └── ci.yml
+├── .github/                    # CI workflow + issue templates
 ├── configs/
-│   └── config.yaml
-├── data/
-│   ├── raw/
-│   ├── interim/
-│   ├── processed/
-│   └── README.md
+│   └── config.yaml             # seasons, features, model, evaluation, output paths
+├── data/                       # generated, not tracked (raw/, interim/, processed/, predictions/)
 ├── docs/
-│   └── architecture.md
-├── models/
-│   └── .gitkeep
-├── notebooks/
-│   └── .gitkeep
+│   ├── architecture.md
+│   ├── model_evaluation.md     # backtest results and limitations
+│   └── using_the_fpl_api.md    # what the official API offers and how it is used
+├── models/                     # saved model artifacts (not tracked)
 ├── reports/
-│   ├── figures/
-│   └── model_results/
-├── scripts/
-│   ├── build_features.py
-│   ├── generate_predictions.py
-│   ├── ingest_data.py
-│   └── train_model.py
-├── src/
-│   └── fpl_model/
-│       ├── data/
-│       ├── features/
-│       ├── models/
-│       ├── optimization/
-│       ├── pipelines/
-│       └── utils/
+│   ├── dashboard/              # generated HTML dashboards (not tracked)
+│   └── model_results/          # generated backtest tables (not tracked)
+├── scripts/                    # command-line entry points
+│   ├── ingest_data.py          #   download historical seasons
+│   ├── normalize_data.py       #   clean them into canonical tables
+│   ├── build_features.py       #   leakage-free feature table
+│   ├── train_model.py          #   walk-forward backtest + final model
+│   ├── fetch_live.py           #   current season from the official FPL API
+│   ├── predict_upcoming.py     #   next Gameweek -> CSV + dashboard
+│   ├── score_gameweek.py       #   grade a saved prediction -> track record
+│   └── generate_predictions.py #   replay a past Gameweek
+├── src/                        # the importable package (`import src`)
+│   ├── dashboard.py            #   self-contained HTML dashboard
+│   ├── data/                   #   download, FPL API client, schema, validation, normalization
+│   ├── features/               #   player, team and fixture features
+│   ├── models/                 #   LightGBM points model, validation, metrics
+│   ├── optimization/           #   squad / XI / captain optimizer, decision backtest
+│   ├── pipelines/              #   ingestion, training, upcoming prediction, track record
+│   └── utils/                  #   config and logging
 ├── tests/
-│   ├── test_data.py
-│   ├── test_features.py
-│   ├── test_models.py
-│   └── test_optimization.py
-├── .editorconfig
-├── .env.example
-├── .gitignore
-├── .pre-commit-config.yaml
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── LICENSE
-├── Makefile
-├── PROJECT_STATUS.md
+├── instructions.md             # how to set up and run everything
 ├── pyproject.toml
-├── SECURITY.md
+├── Makefile
 └── README.md
 ```
 
@@ -373,7 +354,7 @@ fpl-ai/
 
 ### Requirements
 
-- Python 3.12+
+- Python 3.13+
 - Git
 - A virtual environment
 - Optional: PostgreSQL for database-backed development
@@ -410,6 +391,44 @@ pip install -e ".[dev]"
 ```bash
 cp .env.example .env
 ```
+
+### Quick start
+
+```bash
+python scripts/ingest_data.py --season 2021-22 --season 2022-23 --season 2023-24 --season 2024-25 --season 2025-26 --season 2026-27
+python scripts/normalize_data.py --season 2021-22 --season 2022-23 --season 2023-24 --season 2024-25 --season 2025-26 --season 2026-27
+python scripts/build_features.py
+python scripts/train_model.py          # walk-forward backtest + final model
+python scripts/generate_predictions.py --season 2025-26 --gameweek 20
+```
+
+Or `make pipeline` once the data is downloaded.
+
+### Predict the upcoming Gameweek and open the dashboard
+
+```bash
+python scripts/fetch_live.py                 # official FPL API -> data/raw/<current season>/  (~2 min)
+python scripts/predict_upcoming.py           # trains, predicts, writes the dashboard
+open reports/dashboard/latest.html           # or double-click it; no server needed
+```
+
+Every gameweek, repeat (details in `docs/using_the_fpl_api.md`):
+
+```bash
+python scripts/fetch_live.py          # fresh results, prices, injury flags
+python scripts/score_gameweek.py      # grade last Gameweek's saved prediction -> track record
+python scripts/predict_upcoming.py    # predict the next Gameweek (re-run before the deadline for news)
+```
+
+The dashboard (a single self-contained HTML file) shows the expected points for every
+player in the next unfinished Gameweek, the top captain picks, the best XI under FPL rules,
+and a sortable, filterable table. Expected points are the model's estimate multiplied by FPL's
+own chance-of-playing flag, so injured players are discounted. The page warns you when the
+form data is more than one Gameweek behind the Gameweek being predicted. It also compares the
+model with FPL's own expected points (`ep_next`), shows ownership and set-piece takers, and, once
+Gameweeks have been scored, a track record of how each predictor actually did.
+`fetch_live.py` needs access to `fantasy.premierleague.com`; without it the same pipeline also
+works on the community dataset (`scripts/ingest_data.py --season 2026-27`), which can lag.
 
 ### Test
 
@@ -492,60 +511,60 @@ As the project grows, large artifacts may be managed with:
 
 ### Phase 1 — Data
 
-- [ ] Official FPL API client
-- [ ] Historical data ingestion
-- [ ] Fixture ingestion
-- [ ] Player history ingestion
-- [ ] Data validation
+- [x] Official FPL API client
+- [x] Historical data ingestion
+- [x] Fixture ingestion
+- [x] Player history ingestion
+- [x] Data validation
 - [ ] PostgreSQL schema
 - [ ] Automated data updates
 
 ### Phase 2 — Features
 
-- [ ] Rolling form
-- [ ] Minutes features
-- [ ] Fixture strength
-- [ ] Team strength
-- [ ] Opponent strength
-- [ ] Home/away effects
-- [ ] Availability
-- [ ] xG/xA
+- [x] Rolling form
+- [x] Minutes features
+- [x] Fixture strength
+- [x] Team strength
+- [x] Opponent strength
+- [x] Home/away effects
+- [x] Availability (FPL status flags applied after the model, not learned)
+- [x] xG/xA
 - [ ] Set-piece involvement
 - [ ] Fixture congestion
 
 ### Phase 3 — Modeling
 
-- [ ] Baseline models
-- [ ] Time-aware validation
+- [x] Baseline models
+- [x] Time-aware validation
 - [ ] XGBoost
-- [ ] LightGBM
-- [ ] Model comparison
+- [x] LightGBM
+- [x] Model comparison (LightGBM vs baselines)
 - [ ] Expected minutes model
-- [ ] Expected points model
+- [x] Expected points model
 - [ ] Probabilistic predictions
 
 ### Phase 4 — Decision Engine
 
-- [ ] Starting XI optimizer
-- [ ] Bench optimizer
-- [ ] Captain optimizer
+- [x] Starting XI optimizer
+- [x] Bench optimizer
+- [x] Captain optimizer
 - [ ] Transfer optimizer
 - [ ] Multi-GW optimizer
 - [ ] Risk/differential scoring
 
 ### Phase 5 — Backtesting
 
-- [ ] Historical season simulator
+- [x] Historical season simulator (fresh squad each Gameweek; no transfers yet)
 - [ ] Strategy comparison
-- [ ] Model-vs-baseline analysis
-- [ ] Captaincy evaluation
+- [x] Model-vs-baseline analysis
+- [x] Captaincy evaluation
 - [ ] Transfer evaluation
 
 ### Phase 6 — Production
 
 - [ ] REST API
 - [ ] FPL team integration
-- [ ] Dashboard
+- [x] Dashboard (static HTML)
 - [ ] Scheduled inference
 - [ ] Model registry
 - [ ] Monitoring
