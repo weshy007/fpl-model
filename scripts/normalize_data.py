@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import sys
+
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.data.normalize import load_historical_player_gw, write_player_gw
 
